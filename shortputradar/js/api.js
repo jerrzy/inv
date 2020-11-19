@@ -3,7 +3,7 @@ var api = (function (){
 		td: {
 			api_get_option: 'https://api.tdameritrade.com/v1/marketdata/chains',
 			api_get_ticker: 'https://api.tdameritrade.com/v1/marketdata/quotes',
-			api_key: 'HI4XLAM9UUKXN6OSCM5SWNHSNT73DJ9G'
+			api_key: ''
 		},
 		best: {
 			show_top_k: 6,
