@@ -1,31 +1,55 @@
+// GOOG,BA,XOM,AAPL,AMWL,MSFT,F,M,PLTR,NFLX,FB,UAL,FSLY,JD,BABA,TSLA,AAL,MCD,NIO,DIS,ATVI,AMD,SBUX,TSM,NET,PSTG,AMZN,ZM,GE,VMW,ADBE,BYND,SNOW,NOK,NVTA,ROKU,SQ,CRSP,TDOC,PRLB,WORK,Z,SPOT,TREE,MCRB,TWOU,IOVA,MTLS,NTLA,PD,VCYT,TWST,TWLO,EDIT,EXAS,SPLK,DOCU,ICE,CGEN,U,NTDOY,CERS,IRDM,NSTG,SNPS,PINS,PYPL,PACB,TCEHY,HUYA,SSYS,SE,SYRS,XONE,DOYU,ONVO
+// ,ARCT,CDNA,PSNL,LOVA,CLLS,FATE,INCY,ACCD,BLI,IONS,VRTX,TXG,ADPT,SDGR,TAK,NVS,GH,CSTL,CDXS,PHR,BEAM,AQB,PSTI,ILMN,TMO,REGN,EVGN,RPTX,SURF,ONVO,DE,TRMB,XLNX,BYDDY,KTOS,CAT,WKHS,NXPI,FLIR,AVAV,KMTUY,SPCE,BIDU,TER,NIU,ANSS,NNDM,ISRG,ESLT,ADSK,ROK,HON,RAVN,MELI,SNAP,INTU,WDAY,LSPD,GWRE,PDD,SCHW,IBKR,IPOB,SI,LC,SHOP,HDB,NVDA,TRU,VRSK,BEKE,MKTX,ZS
+
 var api = (function (){
 	const _conf = {
 		td: {
 			api_get_option: 'https://api.tdameritrade.com/v1/marketdata/chains',
 			api_get_ticker: 'https://api.tdameritrade.com/v1/marketdata/quotes',
-			api_key: ''
+			api_key: 'HI4XLAM9UUKXN6OSCM5SWNHSNT73DJ9G'
 		},
 		best: {
-			show_top_k: 6,
-			safe_margins: [0.05, 0.06, 0.07, 0.08, 0.09, 0.1, 0.11, 0.12, 0.13, 0.14, 0.15, 0.16, 0.17, 0.18, 0.19, 0.2, 0.21, 0.22, 0.23, 0.24, 0.25, 0.26, 0.27, 0.28, 0.29, 0.30],
+			show_top_k: 3,
+			safe_margins: [],
 			safe_margin_options: {},
-			default_ticker_list: ['XOM', 'AAPL', 'AMWL', 'MSFT', 'F', 'M', 'BA'],
+			default_ticker_list: [],
 		},
+		/* data structure
+			{
+				ticker: '',
+				strike: 0,
+			}
+		*/
+		highlight: [],
 		weekly: true,
+		weekly_max_days_to_exp: 13,
 		max_ratio_value: 100,
-		safe_margin_max: 0.30,
+		safe_margin_max: 0.20,
 		safe_margin_min: 0.05,
+		safe_margin_offset: 0.005,
 		days_per_month: 31,
+		quote_interval: 100, // in second
+		quote_delay: 600 // in millisecond
 	};
+	
+	const _generateSafeMargins = function(){
+		let sm = _conf.safe_margin_min;
+		while(sm < _conf.safe_margin_max){
+			_conf.best.safe_margins.push(sm);
+			sm += _conf.safe_margin_offset;
+		}
+	}
+	
 	/*
 	 * date window is from today to next month.
 	*/
 	const _getOptions = function(config) {
+		console.log(config.tick.toUpperCase());
 		const today = new Date();
 		const fromDate = today.getFullYear() + '-' + (today.getMonth() + 1) + '-' + today.getDate();
 		if(api.conf.weekly){
-			// a week later
-			today.setDate(today.getDate() + 7);	
+			// two weeks
+			today.setDate(today.getDate() + _conf.weekly_max_days_to_exp);
 		} else {
 			// a month later
 			today.setMonth(today.getMonth() + 1);
@@ -73,6 +97,9 @@ var api = (function (){
 	}
 	*/
 	const _calBestOnSafeMargin = function(optionData){
+		if(optionData.totalVolume == 0){
+			return;
+		}
 		// create the D2E object
 		_conf.best.safe_margin_options[optionData.daysToExpiration] = _conf.best.safe_margin_options[optionData.daysToExpiration] || {};
 		
@@ -101,7 +128,8 @@ var api = (function (){
 				mark: optionData.mark,
 				safeMargin: optionData.safeMarginRatio,
 				rorc: rorc,
-				arorc: arorc
+				arorc: arorc,
+				volumn: optionData.totalVolume
 			};
 		if(safeMarginSortedArray == undefined){
 			// create the safe margin options array
@@ -171,10 +199,7 @@ var api = (function (){
 				keys.push(k);
 			}
 		}
-
 		keys.sort();
-		keys.reverse()
-
 		len = keys.length;
 
 		let orderedObject = {};
@@ -189,6 +214,8 @@ var api = (function (){
 		//console.log(ms)
 		return new Promise(resolve => setTimeout(resolve, ms));
 	}
+
+	_generateSafeMargins();	
 	
 	return {
 		conf: _conf,

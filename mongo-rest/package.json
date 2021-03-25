@@ -1,0 +1,14 @@
+{
+  "name": "inv.mongo-rest",
+  "version": "1.0.0",
+  "description": "rest server for inv mongoDB",
+  "main": "index.js",
+  "scripts": {
+    "test": "test"
+  },
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "mongodb-rest": "^0.10.14"
+  }
+}

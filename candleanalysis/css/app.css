@@ -1,0 +1,23 @@
+[data-field="safe-margin-ratio"] {
+	min-width: 55px;
+}
+
+#ticker-input{
+	text-transform: uppercase;
+	padding: 1px 0 5px 5px;
+}
+
+.top-k-sm-ticker, .top-k-sm-strik, .top-k-sm-arorc, [data-field="volumn"], [data-field="sm-ratio"]{
+	min-width: 40px;
+	text-align: left;
+	display: inline-block;
+	text-align: center;
+}
+
+.top-k-sm-arorc, .top-k-sm-strik{
+	min-width: 80px;
+}
+
+.top-k-sm{
+	min-width: 250px;
+}

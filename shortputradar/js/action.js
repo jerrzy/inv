@@ -1,13 +1,18 @@
 $(function(){
 	const loadTickerOption = function(ticker) {
-		console.log(ticker);
+		// console.log(ticker);
 		api.getOptions({
 			tick: ticker
 		}).done(function(data){
-			// console.log(data);
-			// loadOptions(data);
+			// discard data with wrong days-to-exp
+			if(data.daysToExpiration > api.conf.weekly_max_days_to_exp){
+				return;
+			}
 			calBestSMOptions(data);
 			loadBestSMOptions();
+			// unmute the ticker element
+			// mute tickers waiting for update
+			$('[data-ticker="' + ticker + '"]').removeClass('badge-secondary').addClass('badge-dark');
 		}).fail(function(error){
 			console.log(error);
 		});
@@ -15,32 +20,51 @@ $(function(){
 	
 	const loadTickers = function(){
 		$('#tickers').empty();
+		
 		let tickers = [];
 		// default tickers
 		const defaultTickers = api.conf.best.default_ticker_list;
-		defaultTickers.forEach(ticker => {
-			if(!tickers.includes(ticker)){
-				tickers.push(ticker);
-			}
-		});
+		if(defaultTickers){
+			defaultTickers.forEach(ticker => {
+				if(!tickers.includes(ticker)){
+					tickers.push(ticker);
+				}
+			});	
+		}
 		// tickers in the storage
 		const storedTickers = localStorage.getItem('tickers');
-		storedTickers.split(',').forEach(ticker => {
-			if(!tickers.includes(ticker)){
-				tickers.push(ticker);
-			}
-		});
-		
+		if(storedTickers){
+			storedTickers.split(',').forEach(ticker => {
+				if(!tickers.includes(ticker)){
+					tickers.push(ticker);
+				}
+			});	
+		}		
 		localStorage.setItem('tickers', tickers);
 		// show tickers
 		$('#ticker-count').html(tickers.length);
 		tickers.forEach(ticker => {
 			const tickerTemplate = template.getTickerTemplate();
-			tickerTemplate.html(ticker);
+			const tickerDetail = getTickerDetail(ticker);
+			tickerTemplate.html(ticker);			
+			tickerTemplate.attr('data-ticker', ticker);
+			tickerTemplate.attr('title', tickerDetail);
+			tickerTemplate.removeClass('badge-dark').addClass('badge-secondary');
 			$('#tickers').append(tickerTemplate);
 		});
-		
+		//
+		$('[data-toggle="tooltip"]').tooltip();
 		api.conf.best.default_ticker_list = tickers;
+	}
+	
+	const getTickerDetail = function(ticker){
+		const tickerDetail = localStorage.getItem(ticker);
+		if(!tickerDetail){
+			api.quoteTicker(ticker).done(data => {
+				localStorage.setItem(ticker, data[ticker].description);
+			}).fail(error => console.log(error));
+		}
+		return localStorage.getItem(ticker);
 	}
 	
 	const calBestSMOptions = function(data){
@@ -87,6 +111,16 @@ $(function(){
 					topKMSTemplate.find('[data-field="ticker"]').html(smItem.ticker);
 					topKMSTemplate.find('[data-field="strike"]').html(smItem.strike + '-' + smItem.mark);
 					topKMSTemplate.find('[data-field="arorc"]').html(api.toPercentage(smItem.arorc));
+					// highlight arorc greater than 50%
+					if(smItem.arorc >= 0.2 && smItem.arorc < 0.5){
+						topKMSTemplate.find('[data-field="arorc"]').removeClass('badge-secondary').addClass('badge-success');
+					} else if(smItem.arorc > 0.5){
+						topKMSTemplate.find('[data-field="arorc"]').removeClass('badge-secondary').addClass('badge-warning');
+					}
+					topKMSTemplate.find('[data-field="volumn"]').html(smItem.volumn);
+					if(smItem.volumn != 0){
+						topKMSTemplate.find('[data-field="volumn"]').removeClass('badge-secondary').addClass('badge-success');
+					}
 					$(rowTemplate).find('[data-field="sm-info"]').append(topKMSTemplate);
 					count++;
 				}
@@ -98,69 +132,6 @@ $(function(){
 		return topSMTableTemplate;
 	}
 	
-	const createOptionRow = function(index, optionRowData){
-		const mark = optionRowData['mark'];
-		const strikePrice = optionRowData.strikePrice;
-		const daysToExpiration = optionRowData.daysToExpiration;
-		const rorc = api.calRORC(mark, strikePrice);
-		const arorc = api.calARORC(rorc, daysToExpiration);
-		// index is current price
-		let rowTemplate = template.createOptionRowTemplate();
-		$(rowTemplate).find('[data-field="strike-price"]').html(strikePrice);
-		$(rowTemplate).find('[data-field="safe-margin-ratio"]').html(api.toPercentage(optionRowData.safeMarginRatio));
-		$(rowTemplate).find('[data-field="mark"]').html(mark);
-		$(rowTemplate).find('[data-field="rorc"]').html(api.toPercentage(rorc));
-		$(rowTemplate).find('[data-field="arorc"]').html(api.toPercentage(arorc));
-		return rowTemplate;
-	}
-
-	const loadOptions = function(data){
-		// container
-		let optionChainContainer = getOptionChainContainerTemplate();
-		// basic info
-		let basicInfo = createBasicInfo(data);
-		$(optionChainContainer).find('[data-field="basic-info-block"]').html(basicInfo);
-		$.each(data.putExpDateMap, function(expirationDate, optionData){
-			optionData.underlyingPrice = data.underlyingPrice;
-			optionData.symbol = data.symbol;
-			$(optionChainContainer).find('[data-field="option-chain-block"]').append(createOptionTable(expirationDate, optionData));
-		});
-		$('[data-field="option-content"]').append($(optionChainContainer).html());
-	}
-	
-	const createBasicInfo = function(data){
-		let basicInfoTemplate = $('[data-field="template-basic-info"]').clone();
-		$(basicInfoTemplate).find('[data-field="ticker"]').html(data.symbol);
-		$(basicInfoTemplate).find('[data-field="price"]').html(api.round(data.underlyingPrice));
-		$(basicInfoTemplate).find('[data-field="volatility"]').html(data.volatility);
-		return $(basicInfoTemplate).html();
-	}
-	
-	const createOptionTable = function(optionExpDate, optionData){
-		let optionTableTemplate = template.getOptionTableTemplate();
-		let expDate = optionExpDate.split(':')[0];
-		let daysToExp = optionExpDate.split(':')[1] + ' days left';
-		$(optionTableTemplate).find('[data-field="exp-date"]').html(expDate);
-		$(optionTableTemplate).find('[data-field="days-to-exp"]').html(daysToExp);
-		$.each(optionData, function(index, item){
-			if(item[0] != undefined){
-				// don't know why the option object is in an array.
-				let optionRowData = item[0];
-				
-				const underlyingPrice = optionData.underlyingPrice;
-				const safeMarginRatio = (underlyingPrice - optionRowData.strikePrice) / underlyingPrice;
-				// skip option with zero mark
-				if(api.isInSafeMargin(underlyingPrice, optionRowData.strikePrice)  && optionRowData.mark){
-					optionRowData.safeMarginRatio = safeMarginRatio;
-					optionRowData.ticker = optionData.symbol;
-					optionRowData.underlyingPrice = optionData.underlyingPrice;
-					$(optionTableTemplate).find('tbody').append(createOptionRow(index, optionRowData));
-				}
-			}
-		});
-		return optionTableTemplate;
-	}
-	
 	$('#add-ticker').on('click', function(){
 		let ticker = $('#ticker-input').val();
 		if(ticker){
@@ -168,42 +139,53 @@ $(function(){
 			// check existance
 			if(api.conf.best.default_ticker_list.includes(ticker)){
 				$('#ticker-input').val('');
-				$('#ticker-input').attr('placeholder', 'Ticker exists');
+				$('#ticker-input').attr('placeholder', 'Ticker: ' + ticker + ' exists');
+				$('#ticker-input').focus();
 				return;
 			}
 			api.quoteTicker(ticker).done(data => {
 				if($.isEmptyObject(data)) {
 					$('#ticker-input').val('');
-					$('#ticker-input').attr('placeholder', 'Ticker not found');
+					$('#ticker-input').attr('placeholder', 'Ticker: ' + ticker + ' not found');
+					$('#ticker-input').focus();
 				} else {
 					let storedTickers = localStorage.getItem('tickers').split(',');
 					if(!storedTickers.includes(ticker)){
 						storedTickers.push(ticker);
 						localStorage.setItem('tickers', storedTickers)
 						$('#ticker-input').val('');
-						$('#ticker-input').attr('placeholder', 'Add Ticker');
-					
+						$('#ticker-input').attr('placeholder', 'Ticker: ' + ticker + ' Added');
+						$('#ticker-input').focus();
 						loadTickers();
-						loadTickerOptions();
+						// loadTickerOptions();
 					}
 				}
 			}).fail(e => console.error(e));
 		}
 	});
+
+	const addHighlight = function(ticker){
+		const target = $('[data-ticker="' + ticker + '"]');
+		if(target.length == 0){
+			return;
+		}
+		
+		$('[data-ticker]').removeClass('highlight');
+		target.addClass('highlight');
+	}
 	
 	const loadTickerOptions = function(){
+		$('[data-ticker]').removeClass('badge-dark').addClass('badge-secondary');
 		let ms = 0;		
 		$.each(api.conf.best.default_ticker_list, function(index, ticker){
-			api.sleep(ms+=200).then(() => loadTickerOption(ticker));
+			api.sleep(ms+=api.conf.quote_delay).then(() => loadTickerOption(ticker));
 		});
 	}
 	
 	const start = function(){
 		loadTickers();
 		
-		setInterval(function(){
-			loadTickerOptions();
-		}, 30000);
+		setInterval(function(){loadTickerOptions();}, api.conf.quote_delay * (api.conf.best.default_ticker_list.length + 1));
 		loadTickerOptions();
 	}
 	
