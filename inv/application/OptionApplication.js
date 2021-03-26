@@ -17,7 +17,7 @@ class OptionApplication {
     }
 
     async loadOptions() {
-        const tickers = await this.tickerRepository.getTickers(this.hasOption);
+        const tickers = await this.tickerRepository.getTickers(this.hasOption, 'AXAS');
 
         for (let index in tickers) {
             let ticker = tickers[index];

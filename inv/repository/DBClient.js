@@ -1,16 +1,18 @@
 const Utility = require('../utility/Utility');
 const { MongoClient } = require("mongodb");
 
-class DBClient{
+class DBClient {
     static #DB_CLIENT;
     static #INV_DB;
     static #DB_URI = "mongodb://localhost:27017";
     static #INV_DB_NAME = 'inv';
 
-    constructor(){}
+    constructor() { }
 
     static async getCollection(collectionName) {
-        return this.#getDB().then(db => db.collection(collectionName));
+        const db = await this.#getDB();
+        const collection = await db.collection(collectionName);
+        return collection;
     }
 
     static async logError(errorObj) {
@@ -20,14 +22,14 @@ class DBClient{
     }
 
     static close() {
-        if(DBClient.#DB_CLIENT) {
+        if (DBClient.#DB_CLIENT) {
             DBClient.#DB_CLIENT.close();
             console.log("---Mongo closed---");
         }
     }
 
-    static async #getDB(){
-        if(!DBClient.#DB_CLIENT){
+    static async #getDB() {
+        if (!DBClient.#DB_CLIENT) {
             try {
                 DBClient.#DB_CLIENT = new MongoClient(DBClient.#DB_URI);
                 await DBClient.#DB_CLIENT.connect();

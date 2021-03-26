@@ -12,8 +12,8 @@ class Application{
 
     async run(){
         // await this.tickerLoader.loadTicker(); // maybe once per month
-        // await this.tickerLoader.updateTicker(); // maybe once per month
-        await this.optionApplication.loadOptions(); // normally only scan tickers with option. scan all tickers once a while.
+        await this.tickerLoader.updateTicker(); // maybe once per month
+        // await this.optionApplication.loadOptions(); // normally only scan tickers with option. scan all tickers once a while.
         // console.log(`--- options loaded on ${Utility.getToday()}---`);
         // await this.optionApplication.processOptionStatistic();
         // // console.log('--- options statistics processed ---');

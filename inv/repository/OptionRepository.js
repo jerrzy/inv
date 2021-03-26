@@ -2,7 +2,7 @@ const DBClient = require('./DBClient');
 const Utility = require('../utility/Utility');
 const Logger = require('../utility/Logger');
 
-class OptionRepository{
+class OptionRepository {
     constructor() {
         this.callOptionsCollectionName = 'callOptions';
         this.putOptionsCollectionName = 'putOptions';
@@ -12,7 +12,7 @@ class OptionRepository{
     async getOptionByTickerAndQuoteDate(ticker, optionType, quoteDate) {
         // Logger.log();
         const collection = await this.getOptionCollection(optionType);
-        const optionObj = await collection.findOne({symbol: ticker, quote_date: quoteDate});
+        const optionObj = await collection.findOne({ symbol: ticker, quote_date: quoteDate });
         // Logger.log();
         return optionObj;
     }
@@ -30,9 +30,11 @@ class OptionRepository{
 
     async getByTickerAndInsertDate(ticker, optionType, insertDate) {
         const collection = await this.getOptionCollection(optionType);
-        const obj = await collection.findOne({symbol: ticker, insert_date: {
-            $regex: `^${insertDate}`
-        }});
+        const obj = await collection.findOne({
+            symbol: ticker, insert_date: {
+                $regex: `^${insertDate}`
+            }
+        });
         return obj
     }
 
@@ -49,7 +51,7 @@ class OptionRepository{
     }
 
     async getOptionCollection(optionType) {
-        if(Utility.isCall(optionType)) {
+        if (Utility.isCall(optionType)) {
             return DBClient.getCollection(this.callOptionsCollectionName);
         } else {
             return DBClient.getCollection(this.putOptionsCollectionName);
@@ -58,12 +60,25 @@ class OptionRepository{
 
     async updateByTickerAndInsertDate(ticker, insertDate, optionType, data) {
         return this.getOptionCollection(optionType).then(collection => {
-            collection.updateOne({'symbol': ticker, 'insert_date': {
-                $regex: `^${insertDate}`
-            }}, {
+            collection.updateOne({
+                'symbol': ticker, 'insert_date': {
+                    $regex: `^${insertDate}`
+                }
+            }, {
                 $set: data
             });
         });
+    }
+
+    async queryAggregate(query) {
+        const collection = await DBClient.getCollection(this.putOptionsCollectionName);
+        const cursor = await collection.aggregate(query);
+        let ret = [];
+        await cursor.forEach((obj) => {
+            ret.push(obj);
+        });
+
+        return ret;
     }
 }
 

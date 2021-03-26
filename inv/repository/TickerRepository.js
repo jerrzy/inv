@@ -11,6 +11,12 @@ class TickerRepository {
         return collection;
     }
 
+    async insert(tickerObj) {
+        tickerObj.insert_date = Utility.formatLocalDate(new Date(), true);
+        const collection = await this.getTickerCollection();
+        await collection.insertOne(tickerObj);
+    }
+
     async getTickers(hasOption, beginWith) {
         let tickerArray = [];
         let criteria = {};
@@ -56,7 +62,7 @@ class TickerRepository {
 
     async getTickerObj(ticker) {
         const collection = await this.getTickerCollection();
-        const tickerObj = collection.findOne({ 'ticker': ticker });
+        const tickerObj = await collection.findOne({ 'ticker': ticker });
         return tickerObj;
     }
 
